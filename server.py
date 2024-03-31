@@ -9,13 +9,14 @@ def receive_video(save_path, server_port):
     sock.bind((server_address, server_port))
     sock.listen(1)
     connection, client_address = sock.accept()
-    print('Connection from', client_address)
+    file_size = int(connection.recv(32).decode('utf-8'))
     with open(save_path, 'wb') as f:
         while True:
-            data = connection.recv(1024)
+            data = connection.recv(1400)
             if not data:
                 break
             f.write(data)
+        connection.sendall('1'.encode('utf-8'))
     connection.close()
     print('Video received from', client_address)
 
