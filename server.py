@@ -37,8 +37,9 @@ def receive_video(save_path, server_port):
     sock.bind((server_address, server_port))
     sock.listen(1)
     connection, client_address = sock.accept()
-    status_code = connection.recv(32).decode('utf-8')
-    file_size = int(connection.recv(32).decode('utf-8'))
+    response_data = connection.recv(1024)
+    print(response_data.decode('utf-8'))
+    
     with open(save_path, 'wb') as f:
         while True:
             data = connection.recv(1400)

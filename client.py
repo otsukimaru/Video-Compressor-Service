@@ -1,22 +1,26 @@
 import socket
 import sys
 import os
+import json
 
 #ヘッダーを作成する
 def create_protocol_header(json, medea_type, payload_size):
     return json.to_bytes(16, 'big') + medea_type.to_bytes(1, 'big') + payload_size.to_bytes(47, 'big')
 
 # ボディを作成する
-def create_body(json, media_type, payload):
-    return json + media_type.encode('utf-8') + payload
+def create_body(json_data, media_type, payload):
+    json_data_encoded = json.dumps(json_data).encode('utf-8')
+    media_type_encoded = media_type.encode('utf-8')
+    payload_encoded = json.dumps(payload).encode('utf-8')
+    return json_data_encoded + media_type_encoded + payload_encoded
 
 # JSONを作成する
 def create_json(media_type, file_path, operation_code):
-    return {
+    return json.dumps({
         'media_type': media_type,
         'file_path': file_path,
         'op_code': operation_code,
-    }
+    })
 
 # ペイロードを作成する
 def create_payload(media_type, operation_code, url):
@@ -32,7 +36,8 @@ def save_payload(payload, media_type):
     file_name = "payload" + file_extension
     
     with open(file_name, "wb") as file:
-        file.write(payload)
+        for key, value in payload.items():
+            file.write(f"{key}: {value}\n".encode('utf-8'))
 
 # メディアタイプに対応する拡張子を取得する関数
 def get_file_extension(media_type):
