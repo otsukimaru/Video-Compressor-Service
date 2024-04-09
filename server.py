@@ -2,11 +2,16 @@ import socket
 import os
 import sys
 import subprocess
+import json
+
+#ヘッダーやbodyを読み込むところから
 
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = '0.0.0.0'
 server_port = 9001
+
+#jsonデータがstrのままになってしまう
 
 # 選択したビデオを圧縮する
 def compress_video(videos):
@@ -33,12 +38,35 @@ def pick_up_video_to_gif(videos, start, finish):
     for video in videos:
         subprocess.call('ffmpeg  -i' +video+' -ss'+ start +'-t'+ finish, shell=True)
 
+def recv_all(sock, length):
+    data = b''
+    while len(data) < length:
+        more = sock.recv(length - len(data))
+        if not more:
+            raise Exception('short read from socket')
+        data += more
+    return data
+
 def receive_video(save_path, server_port):
     sock.bind((server_address, server_port))
     sock.listen(1)
     connection, client_address = sock.accept()
-    response_data = connection.recv(1024)
-    print(response_data.decode('utf-8'))
+    body_data = connection.recv(1024)
+    body_data_decode = body_data.decode('utf-8')
+    json_data = json.loads(body_data_decode)
+
+    if json_data['operation_code'] == '1':
+        compress_video([save_path])
+    elif json_data['operation_code'] == '2':
+        change_video_resolution([save_path])
+    elif json_data['operation_code'] == '3':
+        change_video_aspect_ratio([save_path])
+    elif json_data['operation_code'] == '4':
+        translate_to_mp3([save_path])
+    elif json_data['operation_code'] == '5':
+        pick_up_video_to_gif([save_path], json_data['start'], json_data['finish'])
+    
+    connection.sendall('1'.encode('utf-8'))
     
     with open(save_path, 'wb') as f:
         while True:
@@ -48,7 +76,7 @@ def receive_video(save_path, server_port):
             f.write(data)
         connection.sendall('1'.encode('utf-8'))
     connection.close()
-    print('Video received from', client_address)
+
 
 if __name__ == '__main__':
     save_path = 'received_video.mp4'
