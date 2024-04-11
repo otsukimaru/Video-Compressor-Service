@@ -99,6 +99,7 @@ def send_video(file_path, server_address, server_port):
                 if not data:
                     break
                 sock.sendall(data)
+            sock.shutdown(socket.SHUT_WR)
             data = sock.recv(1024).decode('utf-8')
             if data == '1':
                 print('success')

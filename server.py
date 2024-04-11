@@ -63,11 +63,13 @@ def receive_video(save_path, server_port):
             while True:
                 data = connection.recv(1400)
                 if not data:
+                    print('data is null')
                     break
                 f.write(data)
-            connection.sendall('1'.encode('utf-8'))
-        
+        connection.sendall('1'.encode('utf-8'))
+        print(json_data['operation_code'])
         if json_data['operation_code'] == '1':
+            print('2')
             compress_video([new_file_path])
         elif json_data['operation_code'] == '2':
             change_video_resolution([new_file_path])
@@ -79,8 +81,8 @@ def receive_video(save_path, server_port):
             pick_up_video_to_gif([new_file_path], json_data['start'], json_data['finish'])
         connection.close()
     else:
-    
         connection.close()
+        sys.exit()
 
 
 if __name__ == '__main__':
