@@ -11,8 +11,6 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = '0.0.0.0'
 server_port = 9001
 
-#jsonデータがstrのままになってしまう
-
 # 選択したビデオを圧縮する
 def compress_video(videos):
     for video in videos:
@@ -54,30 +52,37 @@ def receive_video(save_path, server_port):
     body_data = connection.recv(1024)
     body_data_decode = body_data.decode('utf-8')
     json_data = json.loads(body_data_decode)
-
-    if json_data['operation_code'] == '1':
-        compress_video([save_path])
-    elif json_data['operation_code'] == '2':
-        change_video_resolution([save_path])
-    elif json_data['operation_code'] == '3':
-        change_video_aspect_ratio([save_path])
-    elif json_data['operation_code'] == '4':
-        translate_to_mp3([save_path])
-    elif json_data['operation_code'] == '5':
-        pick_up_video_to_gif([save_path], json_data['start'], json_data['finish'])
     
     connection.sendall('1'.encode('utf-8'))
     
-    with open(save_path, 'wb') as f:
-        while True:
-            data = connection.recv(1400)
-            if not data:
-                break
-            f.write(data)
-        connection.sendall('1'.encode('utf-8'))
-    connection.close()
+    is_ready_code = connection.recv(1024)
+    is_ready_code_decode = is_ready_code.decode('utf-8')
+    new_file_path = save_path + '_received.mp4'
+    if is_ready_code_decode == '1':
+        with open(new_file_path, 'wb') as f:
+            while True:
+                data = connection.recv(1400)
+                if not data:
+                    break
+                f.write(data)
+            connection.sendall('1'.encode('utf-8'))
+        
+        if json_data['operation_code'] == '1':
+            compress_video([new_file_path])
+        elif json_data['operation_code'] == '2':
+            change_video_resolution([new_file_path])
+        elif json_data['operation_code'] == '3':
+            change_video_aspect_ratio([new_file_path])
+        elif json_data['operation_code'] == '4':
+            translate_to_mp3([new_file_path])
+        elif json_data['operation_code'] == '5':
+            pick_up_video_to_gif([new_file_path], json_data['start'], json_data['finish'])
+        connection.close()
+    else:
+    
+        connection.close()
 
 
 if __name__ == '__main__':
-    save_path = 'received_video.mp4'
+    save_path = './video.mp4'
     receive_video(save_path, server_port)

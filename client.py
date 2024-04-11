@@ -34,9 +34,8 @@ def create_payload(media_type, operation_code, url):
     }
 
 # ペイロードをファイルとして保存する関数
-def save_payload(payload, media_type):
-    file_extension = get_file_extension(media_type)
-    file_name = "payload" + file_extension
+def save_payload(payload):
+    file_name = "payload.txt"
     
     with open(file_name, "wb") as file:
         for key, value in payload.items():
@@ -74,7 +73,7 @@ def send_video(file_path, server_address, server_port):
     else:
         json_data = create_json('mp4', file_path, operation_code)
     payload = create_payload('mp4', file_path, operation_code)
-    save_payload(payload, 'mp4')
+    save_payload(payload)
     
     # header = create_protocol_header(len(json.dumps(json_data)), len(media_type), len(payload))
     # body = create_body(json_data, 'mp4', payload)
@@ -87,12 +86,14 @@ def send_video(file_path, server_address, server_port):
             file_size = os.path.getsize(file_path)
             if(file_size == 0):
                 print('file is empty')
+                sock.sendall('0'.encode('utf-8'))
                 sys.exit()
             elif(file_size > 4 * 1024 * 1024 * 1024):
                 print('file is too large')
+                sock.sendall('0'.encode('utf-8'))
                 sys.exit()
                 
-            sock.sendall(str(file_size).encode('utf-8'))
+            sock.sendall('1'.encode('utf-8'))
             while True:
                 data = f.read(1400)
                 if not data:
