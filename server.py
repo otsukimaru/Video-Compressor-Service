@@ -53,57 +53,82 @@ def save_payload(payload):
         for key, value in payload.items():
             file.write(f"{key}: {value}\n".encode('utf-8'))
 
-def receive_video(save_path, server_port):
-    sock.bind((server_address, server_port))
-    sock.listen(1)
-    connection, client_address = sock.accept()
-    header_data = connection.recv(64)
-    json_size = int.from_bytes(header_data[:16], 'big')
-    media_size = int.from_bytes(header_data[16:17], 'big')
-    payload_size = int.from_bytes(header_data[17:], 'big')
-    
-    json_data_body = connection.recv(json_size)
-    json_data_body_decode = json_data_body.decode('utf-8')
-    json_data = json.loads(json_data_body_decode)
-    
-    media_data = connection.recv(media_size)
-    media_data_decode = media_data.decode('utf-8')
-    
-    payload_data_body = connection.recv(payload_size)
-    payload_data_decode = payload_data_body.decode('utf-8')
-    payload = json.loads(payload_data_decode)
+def create_error_json(error_code, error_message, resolution):
+    error_data = {
+        "error_code": error_code,
+        "error_message": error_message,
+        "resolution": resolution,
+        "media_size": 0,
+        "payload_size": 0
+    }
+    return json.dumps(error_data)
 
-    # ペイロードを保存する
-    save_payload(payload)
-    
-    connection.sendall('1'.encode('utf-8'))
-    
-    is_ready_code = connection.recv(1024)
-    is_ready_code_decode = is_ready_code.decode('utf-8')
-    new_file_path = save_path + '_received.mp4'
-    if is_ready_code_decode == '1':
-        with open(new_file_path, 'wb') as f:
-            while True:
-                data = connection.recv(1400)
-                if not data:
-                    break
-                f.write(data)
-        connection.sendall('1'.encode('utf-8'))
+def receive_video(save_path, server_port):
+    try:
+        sock.bind((server_address, server_port))
+        sock.listen(1)
+        connection, client_address = sock.accept()
+        # ヘッダーを受信する
+        header_data = connection.recv(64)
+        json_size = int.from_bytes(header_data[:16], 'big')
+        media_size = int.from_bytes(header_data[16:17], 'big')
+        payload_size = int.from_bytes(header_data[17:], 'big')
         
-        if json_data['operation_code'] == '1':
-            compress_video([new_file_path])
-        elif json_data['operation_code'] == '2':
-            change_video_resolution([new_file_path])
-        elif json_data['operation_code'] == '3':
-            change_video_aspect_ratio([new_file_path])
-        elif json_data['operation_code'] == '4':
-            translate_to_mp3([new_file_path])
-        elif json_data['operation_code'] == '5':
-            pick_up_video_to_gif([new_file_path], json_data['start'], json_data['finish'])
+        json_data_body = connection.recv(json_size)
+        json_data_body_decode = json_data_body.decode('utf-8')
+        json_data = json.loads(json_data_body_decode)
+        
+        media_data = connection.recv(media_size)
+        media_data_decode = media_data.decode('utf-8')
+        
+        payload_data_body = connection.recv(payload_size)
+        payload_data_decode = payload_data_body.decode('utf-8')
+        payload = json.loads(payload_data_decode)
+
+        # ペイロードを保存する
+        save_payload(payload)
+        
+        connection.sendall('1'.encode('utf-8'))
+    except Exception as e:
+        error_code = 500
+        error_message = "Internal Server Error"
+        resolution = 'data is wrong. please make sure the data is correct'
+        error_json = create_error_json(error_code, error_message, resolution)
+        connection.sendall(error_json.encode('utf-8'))
+    
+    try: 
+        is_ready_code = connection.recv(1024)
+        is_ready_code_decode = is_ready_code.decode('utf-8')
+        new_file_path = save_path + '_received.mp4'
+        if is_ready_code_decode == '1':
+            with open(new_file_path, 'wb') as f:
+                while True:
+                    data = connection.recv(1400)
+                    if not data:
+                        break
+                    f.write(data)
+            connection.sendall('1'.encode('utf-8'))
+            
+            if json_data['operation_code'] == '1':
+                compress_video([new_file_path])
+            elif json_data['operation_code'] == '2':
+                change_video_resolution([new_file_path])
+            elif json_data['operation_code'] == '3':
+                change_video_aspect_ratio([new_file_path])
+            elif json_data['operation_code'] == '4':
+                translate_to_mp3([new_file_path])
+            elif json_data['operation_code'] == '5':
+                pick_up_video_to_gif([new_file_path], json_data['start'], json_data['finish'])
+            connection.close()
+        else:
+            connection.close()
+    except Exception as e:
+        error_code = 500
+        error_message = "Internal Server Error"
+        resolution = 'something went wrong. please try again later'
+        error_json = create_error_json(error_code, error_message, resolution)
+        connection.sendall(error_json.encode('utf-8'))
         connection.close()
-    else:
-        connection.close()
-        sys.exit()
 
 
 if __name__ == '__main__':
