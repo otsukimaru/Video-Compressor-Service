@@ -74,6 +74,7 @@ def send_video(file_path, server_address, server_port):
     header = create_header(len(send_json_data), len(media_type), len(send_json_data))
     body = create_body(send_json_data, media_type, send_payload_data)
     sock.sendall(header + body)
+    
     server_response_code = sock.recv(1024)
     
     if server_response_code.decode('utf-8') == '1':
@@ -98,11 +99,16 @@ def send_video(file_path, server_address, server_port):
             data = sock.recv(1024).decode('utf-8')
             if data == '1':
                 print('success')
+            else:
+                data_json = json.loads(data)
+                for key, value in data_json.items():
+                    print(key, value)
         print('Video sent to', server_address)
         sock.close()
     else:
-        print('Video not sent to', server_address)
-        sock.close()
+        server_response_code = json.loads(server_response_code.decode('utf-8'))
+        for key, value in server_response_code.items():
+            print(key, value)
 
 if __name__ == '__main__':
     file_path = input('Enter the file path: ')
