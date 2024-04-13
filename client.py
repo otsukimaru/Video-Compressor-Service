@@ -4,15 +4,18 @@ import os
 import json
 
 #ヘッダーを作成する
-def create_protocol_header(json_data, medea_type, payload_size):
-    print(json_data, medea_type, payload_size)
-    return json_data.to_bytes(16, 'big') + medea_type.to_bytes(1, 'big') + payload_size.to_bytes(47, 'big')
+def create_header(json_size, media_type_size, payload_size):
+    json_bytes = json_size.to_bytes(16, 'big').rjust(16, b'\0')
+    media_type_bytes = media_type_size.to_bytes(1, 'big').rjust(1, b'\0')
+    payload_bytes = payload_size.to_bytes(47, 'big').rjust(47, b'\0')
+    
+    return json_bytes + media_type_bytes + payload_bytes
 
 # ボディを作成する
 def create_body(json_data, media_type, payload):
-    json_data_encoded = json.dumps(json_data).encode('utf-8')
+    json_data_encoded = json_data.encode('utf-8')
     media_type_encoded = media_type.encode('utf-8')
-    payload_encoded = json.dumps(payload).encode('utf-8')
+    payload_encoded = payload.encode('utf-8')
     return json_data_encoded + media_type_encoded + payload_encoded
 
 # JSONを作成する
@@ -32,14 +35,6 @@ def create_payload(media_type, operation_code, url):
         "operation_code": operation_code,
         "url": url
     }
-
-# ペイロードをファイルとして保存する関数
-def save_payload(payload):
-    file_name = "payload.txt"
-    
-    with open(file_name, "wb") as file:
-        for key, value in payload.items():
-            file.write(f"{key}: {value}\n".encode('utf-8'))
 
 # メディアタイプに対応する拡張子を取得する関数
 def get_file_extension(media_type):
@@ -73,12 +68,12 @@ def send_video(file_path, server_address, server_port):
     else:
         json_data = create_json('mp4', file_path, operation_code)
     payload = create_payload('mp4', file_path, operation_code)
-    save_payload(payload)
-    
-    # header = create_protocol_header(len(json.dumps(json_data)), len(media_type), len(payload))
-    # body = create_body(json_data, 'mp4', payload)
     send_json_data = json.dumps(json_data)
-    sock.sendall(send_json_data.encode('utf-8'))
+    send_payload_data = json.dumps(payload)
+    
+    header = create_header(len(send_json_data), len(media_type), len(send_json_data))
+    body = create_body(send_json_data, media_type, send_payload_data)
+    sock.sendall(header + body)
     server_response_code = sock.recv(1024)
     
     if server_response_code.decode('utf-8') == '1':

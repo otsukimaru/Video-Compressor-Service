@@ -45,13 +45,36 @@ def recv_all(sock, length):
         data += more
     return data
 
+# ペイロードをファイルとして保存する関数
+def save_payload(payload):
+    file_name = "payload.txt"
+    
+    with open(file_name, "wb") as file:
+        for key, value in payload.items():
+            file.write(f"{key}: {value}\n".encode('utf-8'))
+
 def receive_video(save_path, server_port):
     sock.bind((server_address, server_port))
     sock.listen(1)
     connection, client_address = sock.accept()
-    body_data = connection.recv(1024)
-    body_data_decode = body_data.decode('utf-8')
-    json_data = json.loads(body_data_decode)
+    header_data = connection.recv(64)
+    json_size = int.from_bytes(header_data[:16], 'big')
+    media_size = int.from_bytes(header_data[16:17], 'big')
+    payload_size = int.from_bytes(header_data[17:], 'big')
+    
+    json_data_body = connection.recv(json_size)
+    json_data_body_decode = json_data_body.decode('utf-8')
+    json_data = json.loads(json_data_body_decode)
+    
+    media_data = connection.recv(media_size)
+    media_data_decode = media_data.decode('utf-8')
+    
+    payload_data_body = connection.recv(payload_size)
+    payload_data_decode = payload_data_body.decode('utf-8')
+    payload = json.loads(payload_data_decode)
+
+    # ペイロードを保存する
+    save_payload(payload)
     
     connection.sendall('1'.encode('utf-8'))
     
@@ -63,13 +86,11 @@ def receive_video(save_path, server_port):
             while True:
                 data = connection.recv(1400)
                 if not data:
-                    print('data is null')
                     break
                 f.write(data)
         connection.sendall('1'.encode('utf-8'))
-        print(json_data['operation_code'])
+        
         if json_data['operation_code'] == '1':
-            print('2')
             compress_video([new_file_path])
         elif json_data['operation_code'] == '2':
             change_video_resolution([new_file_path])
